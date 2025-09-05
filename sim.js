@@ -6,7 +6,6 @@ const MAX_SEED_LEN = 128;
 const MAX_TOTAL_ENTITIES = 1200;
 
 function drawCenteredLabel(ctx, x, y, radiusLike, text) {
-  // Skip when shapes are too small to read
   if (radiusLike < 7) return;
 
   const fontSize = Math.max(10, Math.round(radiusLike * 1.1));
@@ -14,7 +13,6 @@ function drawCenteredLabel(ctx, x, y, radiusLike, text) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `700 ${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-  // subtle outline for contrast, then white fill
   ctx.lineWidth = Math.max(1, Math.round(fontSize * 0.15));
   ctx.strokeStyle = 'rgba(0,0,0,0.45)';
   ctx.fillStyle = '#fff';
@@ -64,7 +62,7 @@ const TypeRegistry = [
       ctx.lineTo(e.x - base / 2, e.y + e.r);
       ctx.lineTo(e.x + base / 2, e.y + e.r);
       ctx.closePath(); ctx.fill();
-      const cx = e.x, cy = e.y + e.r / 3; // visual centroid
+      const cx = e.x, cy = e.y + e.r / 3;
       drawCenteredLabel(ctx, cx, cy, e.r, 'S');
     }
   },
@@ -88,7 +86,6 @@ const TypeRegistry = [
       // Regular pentagon
       ctx.fillStyle = palette.spock;
       drawRegularPolygon(ctx, e.x, e.y, e.r, 5 /*sides*/);
-      // Two letters fit fine with current text helper
       drawCenteredLabel(ctx, e.x, e.y, e.r, 'Sp');
     }
   }
@@ -142,7 +139,7 @@ function winnerOf(aId, bId) {
   const A = beatsMap.get(aId), B = beatsMap.get(bId);
   if (A?.has(bId)) return aId;
   if (B?.has(aId)) return bId;
-  return null; // unspecified => tie/no conversion
+  return null;
 }
 
 /* ============================= Canvas setup ============================= */
@@ -202,7 +199,7 @@ const hasCrypto = !!(window.crypto && crypto.getRandomValues);
 randomSeedBtn.addEventListener('click', () => {
   const rs = hasCrypto
     ? `rps-${(crypto.getRandomValues(new Uint32Array(1))[0] >>> 0).toString(36)}`
-    : `rps-${Math.random().toString(36).slice(2, 10)}`; // weaker fallback
+    : `rps-${Math.random().toString(36).slice(2, 10)}`;
   seedInput.value = rs; setSeed(rs); toast('Seed randomized');
 });
 
@@ -223,13 +220,11 @@ class Entity {
   }
   draw(ctx, palette) { TypeRegistry[this.t].draw(ctx, this, palette); }
   update(w, h, dt, spd, wrap) {
-    // integrate with fixed dt, speed acts as scalar multiplier
     const adv = dt * spd;
     this.x += this.vx * adv; this.y += this.vy * adv;
     if (wrap) {
       this.x = mod(this.x, w); this.y = mod(this.y, h);
     } else {
-      // walls (bounce)
       if (this.x - this.r < 0) { this.x = this.r; this.vx = Math.abs(this.vx); }
       if (this.x + this.r > w) { this.x = w - this.r; this.vx = -Math.abs(this.vx); }
       if (this.y - this.r < 0) { this.y = this.r; this.vy = Math.abs(this.vy); }
@@ -247,7 +242,7 @@ function clampVel(e) {
 /* ====================== Simulation state & UI refs ====================== */
 let entities = []; let animId = null; let running = false;
 let accumulator = 0; let lastTime = performance.now();
-const FIXED_DT = 1 / 60; // seconds, deterministic step
+const FIXED_DT = 1 / 60;
 
 const startBtn = document.getElementById('startBtn');
 const resetBtn = document.getElementById('resetBtn');
@@ -322,10 +317,8 @@ function buildTypeUI() {
 
 /* ====================== Clamp helper for inputs ====================== */
 function clampInput(el) {
-  // coerce to integer; treat empty/invalid as 0
   let v = parseInt(el.value, 10);
   if (Number.isNaN(v)) v = 0;
-  // enforce range and integer step
   v = Math.max(0, Math.min(v, MAX_ENTITIES_PER_TYPE));
   el.value = String(v);
 }
@@ -450,13 +443,11 @@ function narrowPhase(a, b) {
   const minDist = a.r + b.r;
   const dist2 = dx * dx + dy * dy; if (dist2 > minDist * minDist) return;
 
-  // Determine winner via beats map (ids)
   const aId = TypeRegistry[a.t].id;
   const bId = TypeRegistry[b.t].id;
   const winId = winnerOf(aId, bId);
   if (winId) { if (winId === aId) b.t = a.t; else a.t = b.t; }
 
-  // Separation + elastic bounce along normal
   const dist = Math.sqrt(dist2) || 0.0001;
   const nx = dx / dist, ny = dy / dist;
   const overlap = Math.max(0, (minDist - dist) + EPS);
@@ -467,7 +458,6 @@ function narrowPhase(a, b) {
     b.x = mod(b.x, VIEW_W); b.y = mod(b.y, VIEW_H);
   }
 
-  // 1D elastic along normal with restitution
   const va = a.vx * nx + a.vy * ny; const vb = b.vx * nx + b.vy * ny;
   const ma = a.mass, mb = b.mass;
   const vaAfter = (va * (ma - mb) + 2 * mb * vb) / (ma + mb);
